@@ -1,13 +1,2 @@
-﻿__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-venv/
-.env
-.env.*
-!.env.example
-aegis.db
-*.sqlite
-*.sqlite3
-*.log
-sweekar_hospital_cleaned-1.xlsx
+# Created by pytest automatically.
+*
