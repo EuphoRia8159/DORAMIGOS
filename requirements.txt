@@ -1,2 +1,6 @@
-streamlit>=1.32
-pandas>=2.0
+﻿fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+httpx
+pytest
