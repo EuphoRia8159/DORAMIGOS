@@ -1,6 +1,12 @@
 import math
+import os
 from datetime import datetime
 import streamlit as st
+
+try:
+    import requests
+except ImportError:  # API integration is optional; local demo mode remains available.
+    requests = None
 
 st.set_page_config(
     page_title="Emergency Care Orchestration AI",
@@ -95,6 +101,37 @@ def calculate_travel_minutes(ambulance, hospital):
     return ambulance["eta_to_patient_min"] + hospital_offset[hospital["id"]]
 
 def match_hospitals(scenario_name):
+    """Ask the backend API to rank the current snapshot; use local fallback if it is offline."""
+    api_url = os.getenv("AEGIS_API_URL", "http://127.0.0.1:8000").rstrip("/")
+    if requests is not None:
+        payload = {
+            "scenario_name": scenario_name,
+            "hospitals": [
+                {k: v for k, v in h.items() if k in {
+                    "id", "name", "emergency_department", "specialties", "icu_total",
+                    "icu_available", "emergency_beds_available", "workload", "data_mode"
+                }}
+                for h in st.session_state.hospitals
+            ],
+            "ambulances": [
+                {k: v for k, v in a.items() if k in {"id", "status", "equipment", "eta_to_patient_min"}}
+                for a in st.session_state.ambulances
+            ],
+        }
+        try:
+            response = requests.post(
+                f"{api_url}/api/v1/recommendations", json=payload, timeout=1.2
+            )
+            response.raise_for_status()
+            data = response.json()
+            if data.get("engine") == "backend-api" and isinstance(data.get("recommendations"), list):
+                st.session_state.recommendation_engine_mode = "Connected backend API"
+                return data["recommendations"]
+        except (requests.RequestException, ValueError, TypeError):
+            pass
+
+    # Standalone fallback keeps the demo usable when the API server is not running.
+    st.session_state.recommendation_engine_mode = "Local fallback (API offline)"
     requirements = SCENARIOS[scenario_name]
     available_ambulances = [
         a for a in st.session_state.ambulances
@@ -120,13 +157,8 @@ def match_hospitals(scenario_name):
         if not available_ambulances:
             eligible = False
             reasons.append("No available ambulance meets the configured equipment requirement")
-
         if eligible:
-            # Choose the available compatible ambulance that gives the lowest simulated ETA.
-            ambulance = min(
-                available_ambulances,
-                key=lambda a: calculate_travel_minutes(a, hospital)
-            )
+            ambulance = min(available_ambulances, key=lambda a: calculate_travel_minutes(a, hospital))
             travel = calculate_travel_minutes(ambulance, hospital)
             score = travel + WORKLOAD_SCORE[hospital["workload"]] * 3
             reasons = [
@@ -137,9 +169,7 @@ def match_hospitals(scenario_name):
                 f"Simulated estimated arrival: {travel} minutes",
             ]
         else:
-            ambulance = None
-            travel = None
-            score = None
+            ambulance, travel, score = None, None, None
         results.append({
             "hospital": hospital, "eligible": eligible, "ambulance": ambulance,
             "travel": travel, "score": score, "reasons": reasons,
