@@ -1,6 +1,10 @@
-﻿fastapi
+streamlit
+pandas
+requests
+fastapi
 uvicorn[standard]
 sqlalchemy
 pydantic
+pydantic-settings
 httpx
 pytest
