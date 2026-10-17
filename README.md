@@ -1,48 +1,130 @@
 # AEGIS — Emergency Care Orchestration AI
 
-Hackathon prototype with a Streamlit command dashboard and an optional FastAPI recommendation service.
+AEGIS is an emergency-care coordination prototype combining a Streamlit command dashboard with a FastAPI backend for hospital discovery, ambulance coordination, emergency workflows, recommendations, simulation, analytics, and IBM Z integration.
 
-> **Safety:** This project is a demonstration only. Hospital records, capacities, ambulance status, and arrival estimates in the Streamlit interface are synthetic. Do not use it for clinical triage, patient care, or real-world dispatch.
+> **Safety notice:** This is a demonstration project, not a clinically validated medical system. Data, capacities, ambulance statuses, and arrival estimates may be simulated. Do not use it for real-world triage, patient care, or emergency dispatch.
 
-## Run locally
+## Architecture
 
-Use Python 3.10+.
+- **Streamlit frontend:** `app.py`
+- **FastAPI entry point:** `aegis_backend/main.py`
+- **Backend package:** `aegis_backend/`
+- **API routers:** `aegis_backend/routers/`
+- **IBM Z integration modules:** `aegis_backend/ibm_z/`
+- **Static HTML/CSS/JavaScript frontend:** `static/`
+- **Tests:** `tests/`
 
-1. Create and activate a virtual environment.
-2. Install dependencies:
+The Streamlit interface and static web interface are separate frontend options. The FastAPI application serves the static frontend at `/` by default. Streamlit runs separately and should be used when working with the Streamlit dashboard.
 
-   ```bash
-   python -m venv .venv
-   # Windows PowerShell:
-   .venv\Scripts\Activate.ps1
-   # macOS/Linux:
-   # source .venv/bin/activate
-   python -m pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
+## Requirements
 
-3. In terminal 1, start the recommendation API:
+Use Python 3.10 or newer. Install the dependencies listed in `requirements.txt`.
 
-   ```bash
-   uvicorn backend_api:app --host 127.0.0.1 --port 8000
-   ```
+## Run the Streamlit frontend
 
-   API health: http://127.0.0.1:8000/health  
-   Interactive API docs: http://127.0.0.1:8000/docs
+From the repository root, create a virtual environment:
 
-4. In terminal 2, start the existing Streamlit frontend:
+```bash
+python -m venv .venv
+```
 
-   ```bash
-   streamlit run app.py
-   ```
+Activate it on Windows Git Bash:
 
-The Streamlit dashboard attempts to call `POST /api/v1/recommendations` and displays whether the backend API or local fallback is active. If the API is stopped, the dashboard remains usable in local demo mode. To change the API base URL, set `AEGIS_API_URL` (default `http://127.0.0.1:8000`).
+```bash
+source .venv/Scripts/activate
+```
 
-## Integration notes
+Install dependencies:
 
-- The existing four-tab Streamlit UI is preserved: Command overview, Hospital & fleet, Incident log, and Event simulator.
-- The API ranks the current synthetic hospital and ambulance snapshot submitted by the UI; it does not persist records.
-- `backend_api.py` is intentionally self-contained so the demo can run without the incomplete legacy package imports.
-- The legacy FastAPI entrypoint and its router imports are retained but are not required for this integrated demo launch path.
-- The Indian hospital directory CSV is not automatically loaded by this prototype. Do not treat demo facility names or capacities as verified operational data.
-- The recommendation rules and ETAs are illustrative, not clinically validated, and not a substitute for emergency dispatch systems.
+```bash
+python -m pip install -r requirements.txt
+```
+
+Start Streamlit:
+
+```bash
+streamlit run app.py
+```
+
+Streamlit will print the local URL in the terminal.
+
+## Run the FastAPI backend
+
+Open a second terminal in the repository root and activate the same virtual environment.
+
+Start the API:
+
+```bash
+python -m uvicorn aegis_backend.main:app --host 127.0.0.1 --port 8000
+```
+
+API base URL:
+
+`http://127.0.0.1:8000`
+
+Interactive API documentation:
+
+`http://127.0.0.1:8000/docs`
+
+Health endpoint:
+
+`http://127.0.0.1:8000/health`
+
+The backend uses SQLite by default and may initialize a local `aegis.db` database. Its simulation is enabled by default. IBM Z integration is configured for mock mode by default; a real enterprise connection is not implied.
+
+## Backend modules
+
+- `aegis_backend/classifier.py` — emergency classification.
+- `aegis_backend/config.py` — application and integration settings.
+- `aegis_backend/database.py` — database setup and sessions.
+- `aegis_backend/events.py` — event and WebSocket management.
+- `aegis_backend/models.py` — database models.
+- `aegis_backend/recommendation_engine.py` — recommendation logic.
+- `aegis_backend/schemas.py` — request and response schemas.
+- `aegis_backend/seed_data.py` — baseline demonstration data.
+- `aegis_backend/simulation.py` — simulation engine.
+- `aegis_backend/import_hospitals.py` — hospital data import functionality.
+
+### API routers
+
+The `aegis_backend/routers/` package contains endpoints for hospitals, ambulances, emergencies, recommendations, simulation, IBM Z integration, and analytics.
+
+### IBM Z modules
+
+The `aegis_backend/ibm_z/` package contains the IBM Z client, configuration, capacity synchronization, health-record integration, and status handling.
+
+## Static web frontend
+
+The separate static frontend is located in `static/`:
+
+- `static/index.html`
+- `static/css/styles.css`
+- `static/js/api.js`
+- `static/js/app.js`
+- `static/js/map.js`
+- `static/js/websocket.js`
+
+When the FastAPI server is running, its root route serves `static/index.html` and static assets are mounted under `/static`.
+
+## Tests
+
+Run the test suite from the repository root:
+
+```bash
+python -m pytest
+```
+
+Tests may require additional environment configuration or running services. Passing tests is not a substitute for validating the application before any real-world use.
+
+## Configuration
+
+The backend supports environment variables with the `AEGIS_` prefix and can read a local `.env` file. Important settings include the database URL, server host and port, simulation configuration, recommendation weights, CORS origins, and IBM Z options.
+
+Do not commit credentials, API keys, private environment files, or production connection details.
+
+## Development and integration notes
+
+- Keep the Streamlit frontend in `app.py` separate from the FastAPI entry point in `aegis_backend/main.py`.
+- Review API request and response schemas before connecting the Streamlit UI to backend endpoints.
+- Verify endpoint behavior and run tests after integration.
+- Treat simulated hospital, ambulance, emergency, and telemetry information as demonstration data unless independently verified.

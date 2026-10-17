@@ -1,3 +1,4 @@
+
 streamlit
 pandas
 requests
@@ -8,3 +9,4 @@ pydantic
 pydantic-settings
 httpx
 pytest
+openpyxl
