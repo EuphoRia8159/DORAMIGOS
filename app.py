@@ -229,6 +229,7 @@ with tab_match:
         match = st.session_state.last_match
         # Always recompute against current simulated resource state so changes show immediately.
         current_results = match_hospitals(match["scenario"])
+        st.caption(f"Recommendation engine: {st.session_state.get('recommendation_engine_mode', 'Local fallback (API offline)')} · demo data only")
         eligible_now = [r for r in current_results if r["eligible"]]
         current_id = eligible_now[0]["hospital"]["id"] if eligible_now else None
         previous_id = match.get("recommended_id")
