@@ -1,0 +1,16 @@
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+aegis.db
+aegis.db.bak
+*.db.bak
+*.sqlite
+*.sqlite3
+*.log
+sweekar_hospital_cleaned-1.xlsx
