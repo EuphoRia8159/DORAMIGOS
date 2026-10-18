@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEGIS — Emergency Care Orchestration AI</title>
+    <meta name="description" content="AEGIS is an intelligent emergency coordination platform connecting emergency requests with suitable hospitals and available ambulance services using real-time clinical triage, dynamic recommendation scoring, and an IBM Z integration layer.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+</head>
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="brand-wrapper">
+            <a href="/" class="brand-logo" id="brand-logo">
+                <div class="shield-icon">🛡️</div>
+                <span>AEGIS</span>
+            </a>
+            <span class="brand-tag">Emergency Care Orchestration AI</span>
+            <div class="ibm-z-badge" id="ibm-z-header-badge">
+                <span class="dot"></span>
+                <span id="ibm-z-header-status">IBM Z: MOCK SANDBOX</span>
+            </div>
+        </div>
+
+        <!-- Global Vital Network Stats -->
+        <div class="global-stats" id="global-stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Active Incidents</span>
+                <span class="stat-value critical" id="stat-active-emergencies">3 Active</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Network Inpatient Beds</span>
+                <span class="stat-value" id="stat-bed-capacity">-- / --</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">ICU Available</span>
+                <span class="stat-value healthy" id="stat-icu-units">-- Units</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Ambulance Fleet</span>
+                <span class="stat-value healthy" id="stat-fleet-available">12 Ready</span>
+            </div>
+        </div>
+
+        <!-- Header Actions & Live Telemetry -->
+        <div class="header-actions">
+            <div class="pulse-indicator">
+                <span class="pulse-dot" id="ws-pulse-dot"></span>
+                <span id="ws-status-text">LIVE FEED ONLINE</span>
+            </div>
+
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-sim" title="Start or pause background capacity and ambulance simulation">
+                ⏸ Pause Sim
+            </button>
+            <button class="btn btn-ghost btn-sm" id="btn-step-sim" title="Execute a single simulation cycle immediately">
+                ⚡ Step Tick
+            </button>
+            <button class="btn btn-critical btn-sm" id="btn-open-surge-modal" title="Trigger a mass casualty influx scenario">
+                ⚠️ Trigger Surge
+            </button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-tabs" id="main-nav-tabs">
+        <button class="tab-btn active" data-tab="tab-command-center" id="tab-btn-command">
+            <span class="icon">⚡</span> Live Command Center
+        </button>
+        <button class="tab-btn" data-tab="tab-hospitals" id="tab-btn-hospitals">
+            <span class="icon">🏥</span> Hospital Network & Capacities
+        </button>
+        <button class="tab-btn" data-tab="tab-fleet" id="tab-btn-fleet">
+            <span class="icon">🚑</span> Fleet Telemetry & GPS Radar
+        </button>
+        <button class="tab-btn" data-tab="tab-ibm-z" id="tab-btn-ibm-z">
+            <span class="icon">💻</span> IBM Z Enterprise Console
+        </button>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="main-container">
+
+        <!-- ================= TAB 1: LIVE COMMAND CENTER ================= -->
+        <section class="tab-content active" id="tab-command-center">
+            <div class="command-grid">
+
+                <!-- Left Column: Incident Intake & Active Queue -->
+                <div class="panel-left">
+                    <div class="glass-panel" style="margin-bottom: 1.5rem;">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span class="icon">🚨</span> New Incident Intake
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <!-- Preset Scenarios -->
+                            <div class="scenario-pills" id="scenario-selector">
+                                <span class="scenario-pill" data-scenario="cardiac" id="scenario-cardiac">❤️ Code STEMI</span>
+                                <span class="scenario-pill" data-scenario="stroke" id="scenario-stroke">🧠 Acute Stroke</span>
+                                <span class="scenario-pill" data-scenario="trauma" id="scenario-trauma">💥 Polytrauma MVA</span>
+                                <span class="scenario-pill" data-scenario="pediatric" id="scenario-pediatric">👶 Pediatric Critical</span>
+                            </div>
+
+                            <form id="emergency-form">
+                                <div class="form-group">
+                                    <label class="form-label" for="input-location">Emergency Location</label>
+                                    <input type="text" class="form-control" id="input-location" required value="7th Ave & 34th St, Penn Station Plaza">
+                                </div>
+
+                                <div class="vitals-grid form-group">
+                                    <div>
+                                        <label class="form-label" for="input-latitude">Latitude</label>
+                                        <input type="number" step="0.0001" class="form-control" id="input-latitude" required value="40.7505">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="input-longitude">Longitude</label>
+                                        <input type="number" step="0.0001" class="form-control" id="input-longitude" required value="-73.9934">
+                                    </div>
+                                </div>
+
+                                <div class="vitals-grid form-group">
+                                    <div>
+                                        <label class="form-label" for="input-caller-name">Caller Name</label>
+                                        <input type="text" class="form-control" id="input-caller-name" value="Officer Miller">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="input-caller-phone">Contact Phone</label>
+                                        <input type="text" class="form-control" id="input-caller-phone" value="911-DIRECT-CH2">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="input-complaint">Chief Clinical Complaint / Symptoms</label>
+                                    <textarea class="form-control" id="input-complaint" required>64-year-old male with sudden crushing chest pain radiating to left jaw, severe diaphoresis, acute dyspnea. History of coronary stenting.</textarea>
+                                </div>
+
+                                <div class="vitals-grid form-group">
+                                    <div>
+                                        <label class="form-label" for="input-patient-age">Patient Age</label>
+                                        <input type="number" class="form-control" id="input-patient-age" value="64">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="input-patient-gender">Gender</label>
+                                        <select class="form-control" id="input-patient-gender">
+                                            <option value="M">Male (M)</option>
+                                            <option value="F">Female (F)</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Physiological Vitals Matrix -->
+                                <div class="vitals-grid form-group">
+                                    <div>
+                                        <label class="form-label" for="input-vitals-bp">Blood Pressure (mmHg)</label>
+                                        <input type="text" class="form-control" id="input-vitals-bp" placeholder="e.g. 85/54" value="85/54">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="input-vitals-hr">Heart Rate (BPM)</label>
+                                        <input type="number" class="form-control" id="input-vitals-hr" placeholder="e.g. 132" value="132">
+                                    </div>
+                                </div>
+
+                                <div class="vitals-grid form-group">
+                                    <div>
+                                        <label class="form-label" for="input-vitals-spo2">SpO2 Oxygen (%)</label>
+                                        <input type="number" class="form-control" id="input-vitals-spo2" placeholder="e.g. 90" value="90">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="input-vitals-gcs">GCS Scale (3-15)</label>
+                                        <input type="number" class="form-control" id="input-vitals-gcs" placeholder="e.g. 14" value="14">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary" id="btn-submit-emergency" style="width: 100%; margin-top: 0.5rem;">
+                                    <span class="icon">✨</span> Triage & Compute Recommendations
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Active Incidents Queue -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span class="icon">📋</span> Active Incidents Queue
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div id="incidents-queue">
+                                <!-- Populated dynamically by app.js -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Column: Dynamic Recommendation Leaderboard -->
+                <div class="panel-center">
+                    <!-- AI Triage Assessment Summary Card -->
+                    <div class="glass-panel" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(16, 24, 40, 0.85) 0%, rgba(13, 20, 36, 0.95) 100%);">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span class="icon">🤖</span> AI Clinical Triage Assessment
+                            </div>
+                            <span class="severity-badge badge-critical" id="active-triage-severity">CRITICAL</span>
+                        </div>
+                        <div class="panel-body">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                                <h2 style="font-size: 1.25rem; font-weight: 800; color: #fff;" id="active-triage-category">CARDIAC ARREST / STEMI</h2>
+                                <span style="font-size: 0.78rem; color: #94a3b8;" id="active-triage-location">7th Ave & 34th St</span>
+                            </div>
+                            <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.45; margin-bottom: 0.8rem;" id="active-triage-ai-summary">
+                                Real-time clinical evaluation...
+                            </p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;" id="active-triage-specialties">
+                                <!-- Injected by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ranked Recommendations Header -->
+                    <div class="panel-header" style="padding-left: 0; padding-right: 0; border: none; margin-bottom: 0.8rem;">
+                        <div class="panel-title" style="font-size: 1.1rem;">
+                            <span class="icon">🏆</span> Dynamic Hospital Recommendations
+                        </div>
+                        <span style="font-size: 0.75rem; color: #94a3b8;">
+                            Ranked by clinical capability, transit time, bed headroom, and IBM Z sync
+                        </span>
+                    </div>
+
+                    <!-- Dynamic Recommendation Cards Container -->
+                    <div id="recommendations-container">
+                        <!-- Populated dynamically by app.js -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Interactive Geospatial Canvas Radar & Event Feed -->
+                <div class="panel-right">
+                    <!-- Geospatial Radar Map -->
+                    <div class="glass-panel" style="margin-bottom: 1.5rem;">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span class="icon">📡</span> Geospatial Radar Map
+                            </div>
+                        </div>
+                        <div class="panel-body" style="padding: 0.8rem;">
+                            <div class="canvas-wrapper">
+                                <canvas id="map-canvas"></canvas>
+                                <div class="canvas-legend">
+                                    <div class="legend-item">
+                                        <span class="legend-color" style="background: #f43f5e;"></span>
+                                        <span>Hospital (L1)</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color" style="background: #38bdf8;"></span>
+                                        <span>Hospital (L2)</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color" style="background: #34d399;"></span>
+                                        <span>Ambulance</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <span class="legend-color" style="background: #fb923c;"></span>
+                                        <span>Emergency</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-time Event Feed & Audit Stream -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <span class="icon">📜</span> Real-time Event Stream
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="event-feed" id="event-feed-container">
+                                <!-- Populated dynamically by app.js -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: HOSPITAL NETWORK & CAPACITIES ================= -->
+        <section class="tab-content" id="tab-hospitals">
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="font-size: 1.4rem; font-weight: 800; color: #fff;">Registered Hospital Facilities</h2>
+                    <p style="font-size: 0.82rem; color: #94a3b8;">Adjust real-time bed counts, ICU availability, and ER surge loads to witness dynamic recommendation recalculation.</p>
+                </div>
+            </div>
+            <div class="hospital-grid" id="hospitals-grid">
+                <!-- Injected dynamically by app.js -->
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: AMBULANCE FLEET & GPS ================= -->
+        <section class="tab-content" id="tab-fleet">
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="font-size: 1.4rem; font-weight: 800; color: #fff;">Active EMS Ambulance Fleet</h2>
+                    <p style="font-size: 0.82rem; color: #94a3b8;">Real-time GPS telemetry, vehicle capability classifications, and live paramedic crew tracking.</p>
+                </div>
+            </div>
+            <div class="fleet-grid" id="ambulance-grid">
+                <!-- Injected dynamically by app.js -->
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: IBM Z ENTERPRISE CONSOLE ================= -->
+        <section class="tab-content" id="tab-ibm-z">
+            <div style="margin-bottom: 1.5rem;">
+                <h2 style="font-size: 1.4rem; font-weight: 800; color: #fff;">IBM Z Mainframe Integration Layer</h2>
+                <p style="font-size: 0.82rem; color: #94a3b8;" id="ibm-z-notice-text">
+                    Enterprise integration layer connecting AEGIS with IBM z16/z15 mainframe systems via z/OS Connect EE.
+                </p>
+            </div>
+
+            <div class="ibm-console-grid">
+                <!-- Left: Status & EHR Lookup -->
+                <div class="glass-panel" style="padding: 1.5rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: #93c5fd; margin-bottom: 1rem;">
+                        Mainframe Gateway Diagnostics
+                    </h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: rgba(15, 98, 254, 0.08); border: 1px solid rgba(15, 98, 254, 0.25); border-radius: 8px; padding: 0.8rem;">
+                            <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Sysplex Node</div>
+                            <div style="font-size: 0.95rem; font-family: var(--font-mono); font-weight: 700; color: #60a5fa;" id="ibm-z-sysplex-node">PLEX1.ZOS25.CICS55</div>
+                        </div>
+                        <div style="background: rgba(15, 98, 254, 0.08); border: 1px solid rgba(15, 98, 254, 0.25); border-radius: 8px; padding: 0.8rem;">
+                            <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Round-Trip Latency</div>
+                            <div style="font-size: 0.95rem; font-family: var(--font-mono); font-weight: 700; color: #10b981;" id="ibm-z-latency">18.4 ms</div>
+                        </div>
+                    </div>
+
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin-bottom: 0.6rem;">
+                        Master Patient Index (MPI) Query Simulator
+                    </h4>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 1rem;">
+                        Test simulated mainframe EHR lookup using test IDs: 
+                        <code style="color: #38bdf8; cursor: pointer;" onclick="document.getElementById('input-patient-nhid').value='NHID-9921-A'">NHID-9921-A</code>, 
+                        <code style="color: #38bdf8; cursor: pointer;" onclick="document.getElementById('input-patient-nhid').value='NHID-4410-B'">NHID-4410-B</code>, or 
+                        <code style="color: #38bdf8; cursor: pointer;" onclick="document.getElementById('input-patient-nhid').value='NHID-1088-C'">NHID-1088-C</code>.
+                    </p>
+
+                    <form id="ibm-z-ehr-form">
+                        <div class="form-group">
+                            <label class="form-label" for="input-patient-nhid">National Health ID / SSN</label>
+                            <input type="text" class="form-control" id="input-patient-nhid" value="NHID-9921-A" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btn-query-ehr">
+                            🔍 Execute CICS Transaction EHR1
+                        </button>
+                    </form>
+
+                    <div id="ehr-lookup-result">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right: COBOL Copybook Inspector -->
+                <div class="glass-panel" style="padding: 1.5rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: #93c5fd; margin-bottom: 0.5rem;">
+                        IBM z/OS Connect COBOL Copybook Schemas
+                    </h3>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 1rem;">
+                        Schema mapping showing how JSON REST payloads translate to fixed-width COBOL copybook data buffers.
+                    </p>
+
+                    <div class="copybook-viewer">
+<span class="comment">* =================================================================*</span>
+<span class="comment">* CPYEMERG: PATIENT EMERGENCY RECORD COMMAREA                     *</span>
+<span class="comment">* CICS TRANSACTION ID: EHR1 | REGION: SYS1                       *</span>
+<span class="comment">* =================================================================*</span>
+<span class="level">01</span> <span class="field">CPYEMERG-IN</span>.
+   <span class="level">05</span> <span class="field">REQ-HEADER</span>.
+      <span class="level">10</span> <span class="field">SYSTEM-ID</span>          <span class="pic">PIC X(8)</span>.
+      <span class="level">10</span> <span class="field">QUERY-TYPE</span>         <span class="pic">PIC X(16)</span>.
+      <span class="level">10</span> <span class="field">TIMESTAMP</span>          <span class="pic">PIC 9(14)</span>.
+   <span class="level">05</span> <span class="field">PATIENT-QUERY</span>.
+      <span class="level">10</span> <span class="field">NAT-HEALTH-ID</span>      <span class="pic">PIC X(12)</span>.
+      <span class="level">10</span> <span class="field">PATIENT-NAME</span>       <span class="pic">PIC X(30)</span>.
+
+<span class="comment">* =================================================================*</span>
+<span class="comment">* CPYCAPAC: HOSPITAL CAPACITY LEDGER COMMAREA                     *</span>
+<span class="comment">* CICS TRANSACTION ID: CAP1 | REGION: SYS1                       *</span>
+<span class="comment">* =================================================================*</span>
+<span class="level">01</span> <span class="field">CPYCAPAC-IN</span>.
+   <span class="level">05</span> <span class="field">HOSP-CODE</span>            <span class="pic">PIC X(8)</span>.
+   <span class="level">05</span> <span class="field">HOSP-NAME</span>            <span class="pic">PIC X(30)</span>.
+   <span class="level">05</span> <span class="field">TRAUMA-LVL</span>           <span class="pic">PIC X(8)</span>.
+   <span class="level">05</span> <span class="field">TOTAL-BEDS</span>           <span class="pic">PIC 9(5)</span>.
+   <span class="level">05</span> <span class="field">AVAIL-BEDS</span>           <span class="pic">PIC 9(5)</span>.
+   <span class="level">05</span> <span class="field">ICU-AVAIL</span>            <span class="pic">PIC 9(4)</span>.
+   <span class="level">05</span> <span class="field">ER-CAPACITY</span>          <span class="pic">PIC 9(4)</span>.
+   <span class="level">05</span> <span class="field">ER-CURRENT-LOAD</span>      <span class="pic">PIC 9(4)</span>.
+   <span class="level">05</span> <span class="field">STATUS-CODE</span>          <span class="pic">PIC X(10)</span>.
+   <span class="level">05</span> <span class="field">SYNC-TIMESTAMP</span>       <span class="pic">PIC 9(14)</span>.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Dispatch Confirmation Modal -->
+    <div class="modal-overlay" id="dispatch-modal">
+        <div class="modal-dialog">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="icon">🚀</span> Confirm Ambulance Dispatch
+                </div>
+                <button class="btn btn-ghost btn-sm" id="btn-close-dispatch-modal">✕</button>
+            </div>
+            <div class="panel-body">
+                <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #cbd5e1;">
+                    Assigning Destination Hospital: <strong style="color: #38bdf8;" id="modal-target-hospital">Hospital Name</strong>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="modal-ambulance-select">Select Available Ambulance Unit</label>
+                    <select class="form-control" id="modal-ambulance-select">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 1.5rem;">
+                    <button class="btn btn-primary" id="btn-confirm-dispatch">
+                        Confirm & Deploy Paramedics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mass Casualty Surge Modal -->
+    <div class="modal-overlay" id="surge-modal">
+        <div class="modal-dialog">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="icon">⚠️</span> Simulate Mass Casualty Incident (MCI)
+                </div>
+                <button class="btn btn-ghost btn-sm" id="btn-close-surge-modal">✕</button>
+            </div>
+            <div class="panel-body">
+                <p style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 1rem;">
+                    Simulate a sudden major emergency influx (e.g. multi-car highway pileup or structure fire) to demonstrate how AEGIS automatically diverts subsequent ambulances to next-best hospitals.
+                </p>
+
+                <form id="surge-form">
+                    <div class="form-group">
+                        <label class="form-label" for="surge-hospital-select">Target Hospital Facility</label>
+                        <select class="form-control" id="surge-hospital-select">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="surge-patient-count">Incoming Trauma Influx (Patients)</label>
+                        <input type="number" class="form-control" id="surge-patient-count" min="2" max="25" value="10">
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 1.5rem;">
+                        <button type="submit" class="btn btn-critical" id="btn-trigger-surge-submit">
+                            Trigger Hospital Surge
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/websocket.js"></script>
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
