@@ -120,7 +120,7 @@ def match_hospitals(scenario_name):
         }
         try:
             response = requests.post(
-                f"{api_url}/api/v1/recommendations", json=payload, timeout=1.2
+                f"{api_url}/api/v1/recommendations", json=payload, timeout=25
             )
             response.raise_for_status()
             data = response.json()
