@@ -5,6 +5,7 @@ import math
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any
+from aegis_backend.ibm_z.client import ibm_z_client
 
 
 router = APIRouter(tags=["Demo Recommendations"])
@@ -49,7 +50,7 @@ class DemoRecommendationRequest(BaseModel):
 
 
 @router.post("/api/v1/recommendations")
-def recommend_demo_hospitals(payload: DemoRecommendationRequest):
+async def recommend_demo_hospitals(payload: DemoRecommendationRequest):
     """Rank the frontend's demo snapshot without creating database incidents."""
 
     requirements = SCENARIOS.get(payload.scenario_name)
@@ -59,9 +60,99 @@ def recommend_demo_hospitals(payload: DemoRecommendationRequest):
             detail=f"Unsupported demo scenario: {payload.scenario_name}",
         )
 
+    # Round-trip the current snapshot through the IBM Z adapter.
+    # In MOCK_SANDBOX, the adapter echoes this simulated capacity ledger.
+    hospitals_snapshot = payload.hospitals or [{
+        "id": "HOSP-A",
+        "emergency_department": True,
+        "specialties": ["cardiology"],
+        "icu_available": 2,
+        "emergency_beds_available": 3,
+        "workload": "Low",
+        "demo_data": True,
+    }] or [{
+        "id": "HOSP-A",
+        "emergency_department": True,
+        "specialties": ["cardiology"],
+        "icu_available": 2,
+        "emergency_beds_available": 3,
+        "workload": "Low",
+        "demo_data": True,
+    }]
+    ambulances_snapshot = payload.ambulances or [{
+        "id": "AMB-1",
+        "status": "Available",
+        "equipment": "Advanced",
+        "eta_to_patient_min": 5,
+        "demo_data": True,
+    }] or [{
+        "id": "AMB-1",
+        "status": "Available",
+        "equipment": "Advanced",
+        "eta_to_patient_min": 5,
+        "demo_data": True,
+    }]
+    capacity_sync = {
+        "service": "SyncEmergencyCapacity",
+        "transaction_id": "AEG1",
+        "success": False,
+        "mode": "UNAVAILABLE",
+        "source": "frontend_snapshot_fallback",
+    }
+
+    try:
+        capacity_result = await ibm_z_client.execute_cics_transaction(
+            service_name="SyncEmergencyCapacity",
+            transaction_id="AEG1",
+            payload={
+                "hospitals": hospitals_snapshot,
+                "ambulances": ambulances_snapshot,
+                "scenario_name": payload.scenario_name,
+            },
+        )
+        capacity_header = capacity_result.get("zos_header", {})
+        returned_snapshot = capacity_result.get("payload", {})
+        if not isinstance(returned_snapshot, dict):
+            returned_snapshot = {}
+
+        returned_hospitals = returned_snapshot.get("hospitals")
+        returned_ambulances = returned_snapshot.get("ambulances")
+
+        if isinstance(returned_hospitals, list):
+            hospitals_snapshot = returned_hospitals
+        if isinstance(returned_ambulances, list):
+            ambulances_snapshot = returned_ambulances
+
+        capacity_mode = capacity_header.get(
+            "mode", capacity_result.get("mode", "UNKNOWN")
+        )
+        capacity_ok = capacity_result.get(
+            "success",
+            capacity_header.get("return_code") == 0
+            or capacity_header.get("status_code") == 200,
+        )
+        capacity_sync.update({
+            "success": bool(capacity_ok),
+            "mode": capacity_mode,
+            "source": (
+                "IBM_Z_MOCK_SANDBOX_SNAPSHOT"
+                if capacity_mode == "MOCK_SANDBOX" and capacity_ok
+                else "IBM_Z_CONNECT_RESPONSE"
+                if capacity_ok
+                else "frontend_snapshot_fallback"
+            ),
+            "latency_ms": capacity_header.get("execution_time_ms"),
+            "sysplex_node": capacity_header.get("sysplex_id"),
+        })
+        if capacity_result.get("error"):
+            capacity_sync["error"] = capacity_result["error"]
+
+    except Exception as exc:
+        capacity_sync["error"] = str(exc)
+
     available_ambulances = [
         ambulance
-        for ambulance in payload.ambulances
+        for ambulance in ambulances_snapshot
         if ambulance.get("status") == "Available"
         and (
             requirements["ambulance_equipment"] != "Advanced"
@@ -71,7 +162,7 @@ def recommend_demo_hospitals(payload: DemoRecommendationRequest):
 
     results = []
 
-    for hospital in payload.hospitals:
+    for hospital in hospitals_snapshot:
         reasons = []
         eligible = True
 
@@ -145,7 +236,46 @@ def recommend_demo_hospitals(payload: DemoRecommendationRequest):
         )
     )
 
+
+    ibm_z_integration = {
+        "service": "EvaluateEmergencyDecision",
+        "transaction_id": "AEG1",
+        "mode": "UNKNOWN",
+        "success": False,
+        "latency_ms": None,
+        "sysplex_node": None,
+        "decision_computation": "Python demo scoring",
+    }
+    try:
+        cics_result = await ibm_z_client.execute_cics_transaction(
+            service_name="EvaluateEmergencyDecision",
+            transaction_id="AEG1",
+            payload={
+                "scenario_name": payload.scenario_name,
+                "decision_output": [
+                    {
+                        "hospital_id": item["hospital"].get("id"),
+                        "eligible": item["eligible"],
+                        "score": item["score"],
+                        "reasons": item["reasons"],
+                    }
+                    for item in results
+                ],
+            },
+        )
+        header = cics_result.get("zos_header", {})
+        ibm_z_integration.update({
+            "mode": header.get("mode", cics_result.get("mode", "UNKNOWN")),
+            "success": cics_result.get("success", False),
+            "latency_ms": header.get("execution_time_ms"),
+            "sysplex_node": header.get("sysplex_id"),
+        })
+    except Exception as exc:
+        ibm_z_integration["error"] = str(exc)
+
     return {
         "engine": "backend-api",
         "recommendations": results,
+        "ibm_z_integration": ibm_z_integration,
+        "ibm_z_capacity_sync": capacity_sync,
     }
