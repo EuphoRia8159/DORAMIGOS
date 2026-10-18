@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any
 
+from aegis_backend.ibm_z.client import ibm_z_client
+
 
 router = APIRouter(tags=["Demo Recommendations"])
 
@@ -49,7 +51,7 @@ class DemoRecommendationRequest(BaseModel):
 
 
 @router.post("/api/v1/recommendations")
-def recommend_demo_hospitals(payload: DemoRecommendationRequest):
+async def recommend_demo_hospitals(payload: DemoRecommendationRequest):
     """Rank the frontend's demo snapshot without creating database incidents."""
 
     requirements = SCENARIOS.get(payload.scenario_name)
@@ -145,7 +147,51 @@ def recommend_demo_hospitals(payload: DemoRecommendationRequest):
         )
     )
 
+    # Invoke the IBM Z adapter with the calculated demo decision.
+    # Recommendation scoring remains in Python; this is not live mainframe scoring.
+    ibm_z_integration = {
+        "service": "EvaluateEmergencyDecision",
+        "transaction_id": "AEG1",
+        "mode": "UNKNOWN",
+        "success": False,
+        "latency_ms": None,
+        "sysplex_node": None,
+        "decision_computation": "Python demo scoring",
+    }
+
+    try:
+        cics_result = await ibm_z_client.execute_cics_transaction(
+            service_name="EvaluateEmergencyDecision",
+            transaction_id="AEG1",
+            payload={
+                "scenario_name": payload.scenario_name,
+                "decision_output": [
+                    {
+                        "hospital_id": item["hospital"].get("id"),
+                        "eligible": item["eligible"],
+                        "score": item["score"],
+                        "reasons": item["reasons"],
+                    }
+                    for item in results
+                ],
+            },
+        )
+
+        zos_header = cics_result.get("zos_header", {})
+        ibm_z_integration.update({
+            "mode": zos_header.get(
+                "mode", cics_result.get("mode", "UNKNOWN")
+            ),
+            "success": cics_result.get("success", False),
+            "latency_ms": zos_header.get("execution_time_ms"),
+            "sysplex_node": zos_header.get("sysplex_id"),
+        })
+
+    except Exception as exc:
+        ibm_z_integration["error"] = str(exc)
+
     return {
         "engine": "backend-api",
         "recommendations": results,
+        "ibm_z_integration": ibm_z_integration,
     }
