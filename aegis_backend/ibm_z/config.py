@@ -15,6 +15,7 @@ class IBMZSettings:
     MOCK_MODE: bool = True
     ZOS_CONNECT_URL: str = ""
     CICS_TRAN_ID: str = "AEG1"
+    SYSPLEX_NODE: str = "PLEX1.ZOS25.CICS55"
     TIMEOUT_SECONDS: float = 5.0
     API_KEY: str = ""
     AUTH_MODE: str = "bearer"
@@ -31,6 +32,7 @@ class IBMZSettings:
         self.MOCK_MODE = _env("AEGIS_IBM_Z_MOCK_MODE", str(getattr(settings, "IBM_Z_MOCK_MODE", True))).lower() in ("1", "true", "yes", "on")
         self.ZOS_CONNECT_URL = _env("AEGIS_IBM_Z_CONNECT_URL", getattr(settings, "IBM_Z_CONNECT_URL", "") or "").strip().rstrip("/")
         self.CICS_TRAN_ID = _env("AEGIS_IBM_Z_CICS_TRAN_ID", getattr(settings, "IBM_Z_CICS_TRAN_ID", "AEG1"))
+        self.SYSPLEX_NODE = _env("AEGIS_IBM_Z_SYSPLEX_NODE", "PLEX1.ZOS25.CICS55")
         self.TIMEOUT_SECONDS = float(_env("AEGIS_IBM_Z_TIMEOUT_SECONDS", str(getattr(settings, "IBM_Z_TIMEOUT_SECONDS", 5.0))))
         self.API_KEY = _env("AEGIS_IBM_Z_API_KEY", getattr(settings, "IBM_Z_API_KEY", "") or "")
         self.AUTH_MODE = _env("AEGIS_IBM_Z_AUTH_MODE", "bearer").lower().strip()
