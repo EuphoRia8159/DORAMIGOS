@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: doramigos-api
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn aegis_backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: AEGIS_IBM_Z_ENABLED
+        value: "true"
+      - key: AEGIS_IBM_Z_MOCK_MODE
+        value: "true"
+
+  - type: web
+    name: doramigos-frontend
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: AEGIS_API_URL
+        fromService:
+          type: web
+          name: doramigos-api
+          envVarKey: RENDER_EXTERNAL_URL
