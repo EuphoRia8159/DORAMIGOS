@@ -21,6 +21,7 @@ from aegis_backend.routers import (
     ambulances,
     emergencies,
     recommendations,
+    demo_recommendations,
     simulation_api,
     ibm_z_api,
     analytics
@@ -83,6 +84,7 @@ app.include_router(hospitals.router)
 app.include_router(ambulances.router)
 app.include_router(emergencies.router)
 app.include_router(recommendations.router)
+app.include_router(demo_recommendations.router)
 app.include_router(simulation_api.router)
 app.include_router(ibm_z_api.router)
 app.include_router(analytics.router)
