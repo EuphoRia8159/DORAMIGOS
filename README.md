@@ -1,9 +1,17 @@
-
 # AEGIS — Emergency Care Orchestration AI
 
 AEGIS is an emergency-care coordination prototype combining a Streamlit command dashboard with a FastAPI backend for hospital discovery, ambulance coordination, emergency workflows, recommendations, simulation, analytics, and IBM Z integration.
 
 > **Safety notice:** This is a demonstration project, not a clinically validated medical system. Data, capacities, ambulance statuses, and arrival estimates may be simulated. Do not use it for real-world triage, patient care, or emergency dispatch.
+
+## Live Demo
+
+- **Streamlit frontend:** https://doramigos-frontend.onrender.com
+- **FastAPI backend:** https://doramigos-api.onrender.com
+- **API documentation:** https://doramigos-api.onrender.com/docs
+- **Backend health check:** https://doramigos-api.onrender.com/health
+
+> **Integration note:** The deployed project uses a sandbox simulation. IBM Z integration is in mock/simulation mode; these links do not represent a live IBM Z mainframe or live hospital-system connection.
 
 ## Architecture
 
@@ -129,4 +137,3 @@ Do not commit credentials, API keys, private environment files, or production co
 - Review API request and response schemas before connecting the Streamlit UI to backend endpoints.
 - Verify endpoint behavior and run tests after integration.
 - Treat simulated hospital, ambulance, emergency, and telemetry information as demonstration data unless independently verified.
-
