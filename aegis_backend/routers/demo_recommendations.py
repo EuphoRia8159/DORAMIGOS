@@ -70,28 +70,14 @@ async def recommend_demo_hospitals(payload: DemoRecommendationRequest):
         "emergency_beds_available": 3,
         "workload": "Low",
         "demo_data": True,
-    }] or [{
-        "id": "HOSP-A",
-        "emergency_department": True,
-        "specialties": ["cardiology"],
-        "icu_available": 2,
-        "emergency_beds_available": 3,
-        "workload": "Low",
-        "demo_data": True,
-    }]
+}]
     ambulances_snapshot = payload.ambulances or [{
         "id": "AMB-1",
         "status": "Available",
         "equipment": "Advanced",
         "eta_to_patient_min": 5,
         "demo_data": True,
-    }] or [{
-        "id": "AMB-1",
-        "status": "Available",
-        "equipment": "Advanced",
-        "eta_to_patient_min": 5,
-        "demo_data": True,
-    }]
+}]
     capacity_sync = {
         "service": "SyncEmergencyCapacity",
         "transaction_id": "AEG1",
